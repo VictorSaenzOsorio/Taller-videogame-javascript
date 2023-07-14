@@ -1,280 +1,305 @@
 
-//contect
-const canvas = document.querySelector('#game');
+const canvas = document.querySelector("#game");
+const game = canvas.getContext("2d");
 
-const btnArriba = document.querySelector('#up');
-const btnDer = document.querySelector('#left');
-const btnIzq = document.querySelector('#right');
-const btnAbajo = document.querySelector('#down');
+const btnUp = document.querySelector("#up");
+const btnDown = document.querySelector("#down");
+const btnRight = document.querySelector("#right");
+const btnLeft = document.querySelector("#left");
+const livesSpan = document.querySelector("#lives");
+const spanTime = document.querySelector("#time");
+const spanRecord = document.querySelector("#record");
+const newGameBtn = document.querySelector("#newGame");
+const recordMensaje = document.querySelector("#record_mensaje");
+const puntajeSpanModal = document.querySelector("#puntajeSpanModal");
+
+
+
+let enemyPositions = [];
+
+let canvasSize;
+let elementSize;
+let level = 0;
+let lives = 3;
+
+let timeStart;
+let timePlayer;
+let timeInterval;
+
+const playerPosition = {
+  x: undefined,
+  y: undefined,
+};
+
+const giftPosition = {
+  x: undefined,
+  y: undefined,
+}
 
-const juego  = canvas.getContext('2d');
-
-//signals: 
-window.addEventListener('load', resizeEvent);
-window.addEventListener('resize', resizeEvent);
-
+
+window.addEventListener("load", setCanvasSize);
+window.addEventListener("resize", setCanvasSize);
 
-let posJugador     = undefined; let mapa     = Array();  let nivel = 0;
-let prePosJugador  = undefined; let celda_t  = 0;        let nivel_actual = undefined;
-let puntoDePartida = Number(0); let canvas_t = 0;        var actualizado  = Boolean(false);
-let explociones    = Array();   let vidas    = 3;        const re_iniciar = {'select': 'si', 
-                                                                             'resetStart': 'indeciso',
-                                                                             'exec' : false};
 
-function resizeEvent(){
-    actualizado = false;
-    canvas_t = (window.innerWidth < window.innerHeight ? window.innerWidth : window.innerHeight) *.75 ;
-    canvas.setAttribute('width', canvas_t);
-    canvas.setAttribute('height',canvas_t);
-    celda_t = canvas_t / 10;
-    juego.textAlign='end';
-    juego.font = font_t() +'px arial';
-    update();}
-
-function font_t(){ return celda_t - celda_t / 10;}
-
-function resetStarEvent(){
-    posJugador = prePosJugador = undefined; 
-    nivel = 0;
-    nivel_actual = undefined;
-    puntoDePartida = 0;
-    vidas = 3;
-    actualizado = false;
-    explociones = Array();
-    re_iniciar['select'] = 'si';
-    re_iniciar['exec'] = false;
-    re_iniciar['resetStart'] = 'indeciso';
-    update();}
+function setCanvasSize() {
+  if (window.innerHeight > window.innerWidth) {
+    canvasSize = window.innerWidth * 0.75;
+  } else {
+    canvasSize = window.innerHeight * 0.75;
+  }
 
+  canvasSize = Number(canvasSize.toFixed(0));
 
-function update(){
-    if(re_iniciar['exec']){paintScreenFinal(); return;}
+  canvas.setAttribute("width", canvasSize);
+  canvas.setAttribute("height", canvasSize);
 
-    cargarMapa();
-    clear();
-    paintEvent();
-    paintEventPlayer();
-    paintEventExplosion();
-    actualizado = true;}
+  elementSize = Number((canvasSize / 10).toFixed(0));
 
+  playerPosition.x = undefined;
+  playerPosition.y = undefined; 
+  
+  startGame();
+}
 
-function cargarMapa(){
-    if(nivel_actual == nivel || Victoria()) return;
-    nivel_actual = nivel;
-    mapa = maps[nivel].match(/[IOX-]/g);}
+function newGame(){
+  level=0;
+  lives=3;
+  clearInterval( timeInterval )
+  timeStart = undefined
+  playerTime = undefined
+  playerPosition.x = undefined
+  playerPosition.y = undefined
+  startGame();
+}
 
+function startGame() {
+  
+  game.font = elementSize * 0.8 + "px Verdana";
+  game.textAlign = "end";
 
-function clear(){
-    if(!actualizado) {
-        juego.clearRect(0,0, canvas_t, canvas_t);
-        return;}
+  const map = maps[level];
 
-    if(posJugador == prePosJugador) return;
-    clearRect(posJugador);
-    clearRect(prePosJugador);}
+  if (!map) {
+    gameWin();
+    return
+  }
 
+  if(!timeStart){
+    timeStart = Date.now();
+    timeInterval = setInterval(showTime,100);
 
-function clearRect(indice){
-    const x  = posX(indice ) - celda_t / 10;
-    const y  = posY(indice ) + celda_t / 5;
-    juego.clearRect(x - 1 ,y , - celda_t, - (celda_t + 1));}
+    showRecord();
+  }
 
 
-function posY(indice){ return (~~(indice/10) + 1) * celda_t - celda_t / 5; }
-function posX(indice){ return (indice - (~~(indice/10) * 10) + 1) * celda_t + celda_t / 10;}
+  const mapRows = map.trim().split("\n");
+  const mapRowsCols = mapRows.map((row) => row.trim().split(""));
 
+  showLives();
+  
+  enemyPositions = [];
+  game.clearRect(0,0,canvasSize, canvasSize);
 
-function paintEvent(){
-    if(!actualizado)
-        mapa.forEach((char, idx) => {
-            if(char == 'O' && posJugador == undefined) puntoDePartida = posJugador = idx;       
-            juego.fillText(emojis[char], posX(idx), posY(idx) );});}
+  mapRowsCols.forEach((row, rowI) => {
+    row.forEach((col, colI) => {
+      const emoji = emojis[col];
+      const posX = elementSize * (colI + 1);
+      const posY = elementSize * (rowI + 1);
 
+      /* Player */
 
-function paintEventPlayer(){
-    if(victoryEvent()) paintScreenEvent();
-    else { 
-        if(posJugador != undefined && prePosJugador != posJugador){
-            juego.fillText(emojis[mapa[prePosJugador]],posX(prePosJugador),posY(prePosJugador));
+      if ( col == "O") {
+        if(!playerPosition.x && !playerPosition.y ){
+          playerPosition.x = posX;
+          playerPosition.y = posY;
+        }
+      }else if(col == "I"){
+        giftPosition.x = posX
+        giftPosition.y = posY
+      }else if (col == "X"){
+        enemyPositions.push({
+          x: posX,
+          y: posY 
+        })
+      }
 
-            if(!gameOverEvent()) juego.fillText(emojis['PLAYER'], posX(posJugador),posY(posJugador));
-            else paintScreenEvent();}}}
+      game.fillText(emoji, posX, posY);
+    });
+  });
 
+  // Renderizado del jugador 
+  movePlayer();
+}
 
-function gameOverEvent(){
-    if(vidas && mapa[posJugador] == 'X'){ 
-        explociones.push(posJugador);
-        --vidas;
-        juego.fillText(emojis['BOMB_COLLISION'],posX(posJugador),posY(posJugador));
-        posJugador = puntoDePartida;}
-    if(gameFinishEvent()) {
-        explociones = Array();
-        return true;} /*juego terminado*/
-    return false; /*continuar con el juego*/}
 
 
-function paintEventExplosion(){
-    if(!explociones.length) return;
-    explociones.forEach((pos) =>{
-        clearRect(pos);
-        juego.fillText(emojis['BOMB_COLLISION'],posX(pos),posY(pos));});}
 
+newGameBtn.addEventListener('click', newGame);
+newGameBtnModal.addEventListener('click', newGame);
+reiniciarBtnModal.addEventListener('click', newGame);
 
-function victoryEvent(){
-    if(mapa[posJugador] != 'I') return false;
-    else if(nivel < maps.length) ++nivel;
-    explociones = Array();
-
-    if(gameFinishEvent()) return true;/*juego terminado*/
-    
-    posJugador = prePosJugador = undefined;
-    actualizado = false;
-    update();
-    return false;/*continuar con el juego*/}
-
-function Victoria(){return nivel >= maps.length;}
-
-function gameFinishEvent(){ 
-    if(!(nivel >= maps.length) == (vidas <= 0) && !re_iniciar['exec']) 
-        re_iniciar['exec'] = true;
-    return !(nivel >= maps.length) == (vidas <= 0);}
-
-
-function paintScreenEvent(){
-    if(!re_iniciar['exec']) return;
-    paintScreen(Victoria() ? 'WIN': 'GAME_OVER');
-    paintScreenFinal();}
-
-
-function paintScreenFinal(){
-    if(!re_iniciar['exec']) return;
-    if(!actualizado) paintScreen(Victoria() ? 'WIN': 'GAME_OVER');
-    const media = canvas_t / 2;
-    const media_alta = media - font_t() + 1;
-    const media_baja = media + font_t() - 1;
-
-    let color, backgroundColor, text = 'continuar', y = media_alta;
-
-    if(Victoria()){ color = '#ffd700';
-                    backgroundColor = '#01433A';}
-
-    else {          color = '#FF2F22';
-                    backgroundColor = '#211A27';}
-
-
-    
-    if(re_iniciar['resetStart'] == 'no' || re_iniciar['select'] == 'exit'){
-        if(actualizado)paintScreen(Victoria() ? 'WIN': 'GAME_OVER');
-        text = Victoria() ? 'Has Ganado' : 'Game Over';
-        y = media + (font_t() / 2);
-        re_iniciar['select'] = 'exit';}
-
-    else if(re_iniciar['resetStart'] == 'si') {
-        resetStarEvent();
-        return;}
-
-    else{
-        paintScreen(Victoria() ? 'WIN': 'GAME_OVER');
-        paintRectText('', '' , backgroundColor,'center',media, media);
-        paintRectText('', '' , backgroundColor,'center',media, media_baja);
-        let siCa = color, siCb = backgroundColor;
-        let noCa = color, noCb = backgroundColor;
-
-        if(re_iniciar['select'] == 'no'){ noCa = backgroundColor;  noCb = color;}
-        else                            { siCa = backgroundColor;  siCb = color;}
-
-        paintRectText('no', noCa, noCb,'center',media + font_t(), media + (font_t() / 2));
-        paintRectText('si', siCa, siCb,'center',media - font_t(), media + (font_t() / 2));}
-    
-
-    
-    paintRectText('', '' , backgroundColor,'center',media, y);
-    paintRectText(text, color , '','center',media, y);}
-
-
-
-function paintScreen(emoji){
-    juego.clearRect(0,0, canvas_t, canvas_t);
-        mapa.forEach((char, idx) =>{
-            if(char == 'X') char = emoji;
-            juego.fillText(emojis[char],posX(idx),posY(idx));});}
-
-
-function paintRectText(txt, color = '', backgroundColor = '', aling = 'center', x = 0,y = 0){
-    if(aling) juego.textAlign = aling;
-    if(backgroundColor){
-        const rect = rectBgText(txt, x, y, aling);
-        juego.fillStyle = backgroundColor;
-        juego.fillRect(rect['x'], rect['y'], rect['width'], rect['height']);}
-    if(color) juego.fillStyle = color;
-    if(txt) juego.fillText(txt, x, y);
-    juego.textAlign = 'end';}
-
-
-function rectBgText(txt, x = 0, y = 0, align=''){
-    const height = font_t();
-    const width = txt == ''|| txt == ' ' ? canvas_t : (font_t()*.75)* txt.length;
-    let px = x; let py = y - (height - (height / 6));
-    if(align == 'center'){px = x - (width / 2);}
-    else if(align != 'left')px = x - width;
-    
-    return {'width': width, 'height':height, 'x': px, 'y' : py};}
-
-//signals:
-window.addEventListener('keydown',keyMov);
-btnArriba.addEventListener('click', movArriba);
-btnAbajo.addEventListener('click', movAbajo);
-btnDer.addEventListener('click', movDer);
-btnIzq.addEventListener('click', movIzq);
-
-//slots:
-function keyMov(event){
-    switch(event.keyCode){
-        //enter     S        N        Y
-        case 13: case 83: case 78: case 89:
-        selectOptionEvent(event.keyCode); 
-                              break;//selecionar opciones
-        case 37: movIzq();    break;//izquierda
-        case 38: movArriba(); break;//arriba
-        case 39: movDer();    break; //derecha
-        case 40: movAbajo();  break;//abajo
-        default:              break;}}
-
-function selectOptionEvent(key){
-    if(key == 83 || key == 89) re_iniciar['resetStart'] = 'si';
-    else if(key == 78) re_iniciar['resetStart'] = 'no';
-    else re_iniciar['resetStart'] = re_iniciar['select'];
-    update();}
-
-function movArriba(){
-    prePosJugador = posJugador;
-    posJugador -= 10;
-    if(posJugador < 0) posJugador = prePosJugador;
-    update();}
-
-
-function movAbajo(){
-    prePosJugador = posJugador;
-    posJugador += 10;
-    if(posJugador >= 100) posJugador = prePosJugador;
-    update();}
-
-
-function movDer(){
-    if(re_iniciar['exec'])  re_iniciar['select'] = 'no';
-    else{
-        prePosJugador = posJugador;
-        const pered = (~~(posJugador / 10)) *10 + 10;
-        ++posJugador;
-        if(posJugador >= pered) posJugador = prePosJugador;}
-    update();}
-
-
-function movIzq(){
-    if(re_iniciar['exec'])  re_iniciar['select'] = 'si';
-    else{
-        prePosJugador = posJugador;
-        const pered  = ~~(posJugador /10) * 10; 
-        --posJugador;
-        if(posJugador < pered) posJugador = prePosJugador;}
-    update();}
+function movePlayer() {
+
+  const giftCollisionX = playerPosition.x.toFixed(2) == giftPosition.x.toFixed(2)
+  const giftCollisionY = playerPosition.y.toFixed(2) == giftPosition.y.toFixed(2)
+
+  const giftCollision = giftCollisionX && giftCollisionY;
+
+  if (giftCollision)  {
+    levelWin();
+  } 
+
+  const enemyCollision = enemyPositions.find( enemy => {
+    const enemyCollisionx = enemy.x.toFixed(2) == playerPosition.x.toFixed(2)
+    const enemyCollisiony = enemy.y.toFixed(2) == playerPosition.y.toFixed(2)
+    return enemyCollisionx && enemyCollisiony
+  } )
+
+  if (enemyCollision) {
+    lives--;
+    levelFail();
+  }
+
+  game.fillText(emojis["PLAYER"], playerPosition.x, playerPosition.y);
+
+}
+
+
+function levelWin(){
+  level++;
+  console.log('Subiste de nivel');
+  startGame();
+}
+
+function levelFail(){
+
+  console.log('Perdiste, vuelve desde el principio');
+
+  if (lives <= 0) {
+    showModalFail();
+    level = 0;
+    lives = 3;
+    timeInterval = undefined;
+  }
+
+  playerPosition.x = undefined;
+  playerPosition.y = undefined;
+  setCanvasSize();
+}
+
+
+function gameWin(){
+  clearInterval(timeInterval);
+  console.log('Terminaste el juego');
+
+  const recordTime = localStorage.getItem('record_time');
+  const playerTime = spanTime.innerHTML = Date.now() - timeStart;
+
+
+  if (recordTime) {
+    if (recordTime >= playerTime) {
+      localStorage.setItem('record_time', playerTime);
+      recordMensaje.innerHTML = 'SUPERASTE EL RECORD 🤩!!!'
+
+    }else{
+      recordMensaje.innerHTML = 'Lo siento, no superaste el record 😓';
+    }
+  }else{
+    localStorage.setItem('record_time', playerTime);
+    recordMensaje.innerHTML = 'Nuevo record, es la primera marca 😎!, ahora trata de superarlo ;)'
+  }
+
+  console.log({recordTime,playerTime});
+  showModal();
+  /* newGame(); */
+}
+
+function showLives() {
+
+  const heartsArray = Array(lives).fill( emojis['HEART']) //[1,2,3]
+
+  livesSpan.innerHTML = "";
+  heartsArray.forEach(heart => livesSpan.append(heart))
+}
+
+function showTime() {
+  spanTime.innerHTML = Date.now() - timeStart;
+  puntajeSpanModal.innerHTML = Date.now() - timeStart;
+}
+
+function showRecord() {
+  spanRecord.innerHTML = localStorage.getItem('record_time');
+}
+
+
+btnUp.addEventListener("click", moveUp);
+btnLeft.addEventListener("click", moveLeft);
+btnRight.addEventListener("click", moveRight);
+btnDown.addEventListener("click", moveDown);
+
+
+window.addEventListener("keydown", (e) => {
+  let tecla = e.key;
+
+  switch (tecla) {
+    case "ArrowUp":
+      moveUp();
+      break;
+
+    case "ArrowDown":
+      moveDown();
+      break;
+
+    case "ArrowLeft":
+      moveLeft();
+      break;
+
+    case "ArrowRight":
+      moveRight();
+      break;
+
+    default:
+      break;
+  }
+});
+
+
+function moveUp() {
+
+  if ((playerPosition.y - elementSize) < elementSize) {
+    console.log("out");
+  } else {
+    playerPosition.y -= elementSize;
+    startGame();
+  }
+}
+
+function moveLeft() {
+
+  if ((playerPosition.x - elementSize) < elementSize) {
+    console.log("out");
+  } else {
+    playerPosition.x -= elementSize;
+    startGame();
+  }
+}
+
+function moveRight() {
+
+  if ((playerPosition.x + elementSize) > canvasSize) {
+    console.log("out");
+  } else {
+    playerPosition.x += elementSize;
+    startGame();
+  }
+}
+
+function moveDown() {
+
+  if ((playerPosition.y + elementSize) > canvasSize) {
+    console.log("out");
+  } else {
+    playerPosition.y += elementSize;
+    startGame();
+  }
+}
