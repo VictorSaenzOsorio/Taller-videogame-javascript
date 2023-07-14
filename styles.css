@@ -57,12 +57,77 @@ p {
     width: 100%;
 }
 
-@media (max-width: 440px) {
-    button {margin-top: 25px;}
+/* MODALS */
 
-    #up,
-    #down {
-        margin-left: 100%;
-        margin-right: 100%;
-    }
+.overlay,
+.overlay_fail{
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(26, 0, 51, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal{
+  visibility: hidden;
+  width: 80%;
+  max-width: 768px;
+  background: #44087D;
+  border: 10px solid #FEFFA9;
+  box-shadow: 0px 4px 4px #FEFFA9;
+  border-radius: 30px;
+  text-align: center;
+  padding: 30px 15px;
+  transform: translateY(-200%);
+  transition: 400ms ease-in-out;
+}
+
+.show{
+  visibility: visible;
+  transform: translateY(0);
+  transition: 400ms ease-in-out;
+}
+
+
+.stars p{
+  font-size: 60px;
+}
+
+.skull p{
+  font-size: 60px;
+}
+
+.puntaje{
+  margin: 25px 0;
+}
+
+.puntaje p{
+  font-size: 25px;
+}
+
+.puntaje span{
+  font-size: 36px;
+}
+
+.puntaje .record_mensaje{
+  font-size: 18px;
+  font-weight: normal;
+  margin-top: 20px;
+}
+
+@media (max-width: 440px) {
+  button { margin-top: 5px; }
+  #up, #down { margin-left: 100%; margin-right: 100%; }
+
+  .stars p{
+    font-size: 35px;
+  }
+
+  .skull p{
+    font-size: 80px;
+  }
 }
